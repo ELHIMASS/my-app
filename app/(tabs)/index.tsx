@@ -1,74 +1,150 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+export default function LoginScreen() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const router = useRouter();
+  const [isCon, setCon] = useState(false);
 
-export default function HomeScreen() {
+  useEffect(() => {
+    const checkLoginStatus = async () => {
+      const storedUser = await AsyncStorage.getItem('user');
+      if (storedUser) {
+        console.log("Utilisateur déjà connecté, redirection...");
+        router.replace('/explore');
+      }
+    };
+    checkLoginStatus();
+  }, []);
+
+  const handleLogin = async () => {
+    try {
+      console.log("Tentative de connexion avec :", username, password);
+  
+      const response = await fetch("http://10.10.4.131:5001/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: username, password }),
+      });
+  
+      const data = await response.json();
+      console.log("📢 Réponse de l'API :", data); // 🔴 DEBUG
+  
+      if (response.ok) {
+        console.log("✅ Connexion réussie ! Stockage des données...");
+        await AsyncStorage.setItem("user", JSON.stringify(data.user));
+        console.log("📢 Utilisateur stocké :", data.user); // 🔴 DEBUG
+        router.replace("/explore");
+      } else {
+        alert("Nom d’utilisateur ou mot de passe incorrect");
+      }
+    } catch (error) {
+      console.error("🚨 Erreur lors de la connexion :", error);
+      alert("Erreur de connexion au serveur.");
+    }
+  };
+  
+
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12'
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={styles.container}>
+      <Image source={require('@/assets/images/image1.png')} style={styles.backgroundImage} />
+      <View style={styles.overlay}>
+        <View style={styles.loginBox}>
+          <Text style={styles.title}>PORTAIL INTRANET ESISA</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Identifiant"
+            placeholderTextColor="#999" 
+            value={username}
+            onChangeText={setUsername}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Mot de passe"
+            placeholderTextColor="#999"
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+          <TouchableOpacity>
+            <Text style={styles.forgotPassword}>Mot de passe oublié ?</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
+            <Text style={styles.loginButtonText}>Se connecter</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
+  container: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
+  backgroundImage: {
     position: 'absolute',
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  overlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    width: '100%',
+  },
+  loginBox: {
+    width: '60%',
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#6C63FF',
+    marginBottom: 20,
+  },
+  input: {
+    width: '100%',
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginBottom: 15,
+    backgroundColor: '#f9f9f9',
+  },
+  forgotPassword: {
+    color: '#6C63FF',
+    fontSize: 14,
+    marginBottom: 15,
+  },
+  loginButton: {
+    backgroundColor: '#6C63FF',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    width: '100%',
+    alignItems: 'center',
+  },
+  loginButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

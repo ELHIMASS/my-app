@@ -149,4 +149,86 @@ app.get("/user/email/:email", async (req, res) => {
 
 // 🔹 Lancer le serveur
 const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => console.log(`🚀 Serveur démarré sur http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Serveur démarré sur http://192.168.100.219:${PORT}`));
+
+
+
+const nodemailer = require("nodemailer");
+
+app.post("/reset-password-request", async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "Utilisateur introuvable" });
+    }
+
+    const resetToken = Math.random().toString(36).substring(2);
+    user.resetToken = resetToken;
+    user.tokenExpiry = Date.now() + 3600000; // expire dans 1h
+    await user.save();
+
+    // 🔐 CONFIGURER LE TRANSPORTEUR
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: "ismailelhimass@gmail.com",       // Ton email
+        pass: "hxvs zxyc mzet juvy"   // Mot de passe ou App Password
+      }
+    });
+
+    const resetLink = `http://192.168.100.219:5001/reset-password/${resetToken}`;
+
+    // ✉️ CONFIGURER LE MAIL
+    const mailOptions = {
+      from: "PORTAIL ESISA administration@esisa.ma",
+      to: email,
+      subject: "Réinitialisation du mot de passe",
+      html: `<p>Bonjour ${user.prenom},</p>
+             <p>Cliquez sur le lien ci-dessous pour réinitialiser votre mot de passe :</p>
+             <a href="${resetLink}">${resetLink}</a>
+             <p>Ce lien expire dans 1 heure.</p>`
+    };
+
+    // 📤 ENVOYER
+    await transporter.sendMail(mailOptions);
+
+    console.log("✅ Email envoyé à :", email);
+    res.json({ message: "Lien de réinitialisation envoyé par email !" });
+
+  } catch (err) {
+    console.error("Erreur :", err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
+
+app.post("/reset-password/:token", async (req, res) => {
+  const { token } = req.params;
+  const { newPassword } = req.body;
+
+  try {
+    const user = await User.findOne({
+      resetToken: token,
+      tokenExpiry: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Lien invalide ou expiré." });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    user.password = hashed;
+    user.resetToken = undefined;
+    user.tokenExpiry = undefined;
+
+    await user.save();
+
+    res.json({ message: "Mot de passe mis à jour avec succès !" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Erreur serveur" });
+  }
+});
+
